@@ -1,0 +1,22 @@
+{
+  "name": "syllabus-calendar",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "workspaces": [
+    "shared",
+    "app",
+    "worker",
+    "eval"
+  ],
+  "scripts": {
+    "test": "npm run test -w shared",
+    "typecheck": "npm run typecheck -w shared && npm run typecheck -w worker && npm run typecheck -w app",
+    "worker:dev": "npm run dev -w worker",
+    "worker:deploy": "npm run deploy -w worker",
+    "android": "npm run android -w app"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

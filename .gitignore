@@ -1,0 +1,12 @@
+node_modules/
+.env
+.env.local
+.dev.vars
+dist/
+.expo/
+android/
+ios/
+*.log
+.wrangler/
+*.bak.md
+eval/out/

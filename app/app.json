@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "シラバスカレンダー",
+    "slug": "syllabus-calendar",
+    "scheme": "syllabuscalendar",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.syllabuscalendar.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "授業日・課題の締切をカレンダーに登録するために使います"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "シラバスの写真を読み込むために使います",
+          "cameraPermission": "シラバスを撮影して読み込むために使います"
+        }
+      ],
+      "expo-notifications",
+      "expo-document-picker"
+    ],
+    "extra": {
+      "apiBaseUrl": "http://192.168.11.14:8787",
+      "revenueCatAndroidKey": "test_REPLACE_ME"
+    }
+  }
+}

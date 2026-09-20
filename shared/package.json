@@ -1,0 +1,24 @@
+{
+  "name": "@syllabus/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@holiday-jp/holiday_jp": "^2.5.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vitest": "^5.0.1"
+  }
+}
