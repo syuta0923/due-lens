@@ -10,3 +10,9 @@ ios/
 .wrangler/
 *.bak.md
 eval/out/
+
+# 評価ケースは自分の大学のシラバスそのもの。公開リポジトリには入れない
+# （著作権・担当教員名などの個人情報）。README に置き方だけ書く
+eval/cases/*
+!eval/cases/.gitkeep
+!eval/cases/*.example.json

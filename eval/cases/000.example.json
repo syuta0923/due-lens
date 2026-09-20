@@ -1,0 +1,62 @@
+{
+  "courses": [
+    {
+      "name": "線形代数学Ⅰ",
+      "weekday": "TUE",
+      "period": 2,
+      "start_time": null,
+      "end_time": null,
+      "room": "A301"
+    }
+  ],
+  "events": [
+    {
+      "course_index": 0,
+      "title": "ガイダンス",
+      "type": "class",
+      "date_raw": "10/6（火）",
+      "date": "2026-10-06",
+      "date_basis": "explicit",
+      "session_number": 1,
+      "time": null,
+      "source_text": "第1回　10/6（火）　ガイダンス",
+      "page": 1
+    },
+    {
+      "course_index": 0,
+      "title": "レポート提出",
+      "type": "assignment",
+      "date_raw": "11/17（火）",
+      "date": "2026-11-17",
+      "date_basis": "explicit",
+      "session_number": 7,
+      "time": null,
+      "source_text": "第7回　11/17（火）　レポート提出",
+      "page": 1
+    },
+    {
+      "course_index": 0,
+      "title": "中間試験",
+      "type": "exam",
+      "date_raw": null,
+      "date": null,
+      "date_basis": "session_only",
+      "session_number": 8,
+      "time": null,
+      "source_text": "第8回　中間試験",
+      "page": 1
+    },
+    {
+      "course_index": 0,
+      "title": "期末試験",
+      "type": "exam",
+      "date_raw": "1/26（火）",
+      "date": "2027-01-26",
+      "date_basis": "explicit",
+      "session_number": 15,
+      "time": null,
+      "source_text": "第15回　1/26（火）　期末試験",
+      "page": 1
+    }
+  ]
+}

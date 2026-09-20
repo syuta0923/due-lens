@@ -27,9 +27,19 @@ export async function shrink(a: Attachment, longEdge = IMAGE_LONG_EDGE): Promise
   if (a.mimeType === "application/pdf") return a;
 
   const ctx = ImageManipulator.ImageManipulator.manipulate(a.uri);
-  ctx.resize({ width: longEdge });
   const image = await ctx.renderAsync();
-  const out = await image.saveAsync({
+
+  // 縮小するのは「長辺」であって幅ではない。width だけを指定すると、縦長の写真
+  // （シラバスを撮ると普通こうなる）で高さが longEdge を超え、eval で決めた
+  // サイズより大きい画像を送ってしまう。短い方の辺を指定しないと縦横比は保たれる
+  const longer = Math.max(image.width, image.height);
+  if (longer > longEdge) {
+    if (image.width >= image.height) ctx.resize({ width: longEdge });
+    else ctx.resize({ height: longEdge });
+  }
+
+  const resized = await ctx.renderAsync();
+  const out = await resized.saveAsync({
     compress: 0.8,
     format: ImageManipulator.SaveFormat.JPEG,
   });

@@ -39,9 +39,23 @@ Google AI（Gemini）の API キー。
 
 ```bash
 npm install
-npm test          # 回数→日付変換・要確認判定の単体テスト
+npm test          # 回数→日付変換・要確認判定・evalの採点ロジックの単体テスト
 npm run typecheck
 ```
+
+### 抽出精度の評価（eval）
+
+モデルと画像の縮小サイズを、勘ではなく正解つきのテストセットで決める。
+
+```bash
+npm run eval -- --dry-run                                        # APIキー不要の検算
+npm run eval -- --model gemini-2.5-flash-lite --long-edge 1568
+npm run eval -- --model gemini-2.5-flash-lite,gemini-3.6-flash --long-edge 1024,1568,2048
+```
+
+プロンプト・スキーマ・検証・修復リトライは `worker/src` をそのまま使うので、
+ここで選んだ条件が本番と一致する。詳しくは [eval/README.md](./eval/README.md)。
+評価ケース（自分の大学のシラバス）は公開リポジトリに含めていない。
 
 ### 中継 API（worker）
 

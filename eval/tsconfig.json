@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  // worker/src を include には入れない。import したファイル（extract / prompt / validate）は
+  // 自動で検査対象になる一方、include に入れると index.ts や quota.ts まで巻き込み、
+  // Cloudflare Workers の型（KVNamespace など）が Node の型と衝突する
+  "include": ["*.ts", "lib/**/*.ts"]
+}

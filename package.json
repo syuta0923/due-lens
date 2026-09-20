@@ -10,8 +10,9 @@
     "eval"
   ],
   "scripts": {
-    "test": "npm run test -w shared",
-    "typecheck": "npm run typecheck -w shared && npm run typecheck -w worker && npm run typecheck -w app",
+    "test": "npm run test -w shared && npm run test -w eval",
+    "typecheck": "npm run typecheck -w shared && npm run typecheck -w worker && npm run typecheck -w app && npm run typecheck -w eval",
+    "eval": "npm run eval -w eval --",
     "worker:dev": "npm run dev -w worker",
     "worker:deploy": "npm run deploy -w worker",
     "android": "npm run android -w app"

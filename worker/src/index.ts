@@ -8,10 +8,8 @@
  * API キーをアプリに含めないための中継。画像・PDF は保存しない（7.5）。
  */
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { generateObject } from "ai";
 import {
   ACCEPTED_MIME,
-  Extraction,
   ExtractRequestMeta,
   HTTP_STATUS,
   MAX_FILES,
@@ -24,9 +22,8 @@ import {
   type ExtractSuccess,
   type QuotaState,
 } from "@syllabus/shared";
-import { buildPrompt, buildRepairPrompt } from "./prompt";
+import { runExtraction, type FilePart } from "./extract";
 import { addCourses, checkQuota, rateLimited } from "./quota";
-import { hardErrors } from "./validate";
 
 export type Env = {
   QUOTA: KVNamespace;
@@ -112,7 +109,7 @@ async function handleExtract(req: Request, env: Env): Promise<Response> {
   const google = createGoogleGenerativeAI({ apiKey: env.GOOGLE_GENERATIVE_AI_API_KEY });
   const model = google(env.MODEL);
 
-  const parts = await Promise.all(
+  const parts: FilePart[] = await Promise.all(
     files.map(async (f) => {
       const data = new Uint8Array(await f.arrayBuffer());
       return f.type === "application/pdf"
@@ -121,35 +118,11 @@ async function handleExtract(req: Request, env: Env): Promise<Response> {
     }),
   );
 
-  const messages: Parameters<typeof generateObject>[0]["messages"] = [
-    { role: "user", content: [{ type: "text", text: buildPrompt(meta) }, ...parts] },
-  ];
-
-  let result: Extraction | null = null;
-  let retried = false;
-  let usage: { inputTokens?: number; outputTokens?: number } | undefined;
-
-  // 形の検証は generateObject（zod）が行う。ここでは意味の検証を見て、失敗なら修復リトライ（4.5）
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const r = await generateObject({ model, schema: Extraction, messages });
-    usage = r.usage as typeof usage;
-
-    const errors = hardErrors(r.object);
-    if (errors.length === 0) {
-      result = r.object;
-      break;
-    }
-
-    if (attempt === 0) {
-      retried = true;
-      messages.push({ role: "assistant", content: JSON.stringify(r.object) });
-      messages.push({ role: "user", content: buildRepairPrompt(errors) });
-    } else {
-      console.log(JSON.stringify({ at: "hard_error", model: env.MODEL, errors }));
-    }
-  }
+  // 呼び出しと修復リトライ（4.5）は extract.ts に置き、eval（4.7）と共有する
+  const { extraction: result, retried, usage, errors } = await runExtraction({ model, meta, parts });
 
   if (!result) {
+    console.log(JSON.stringify({ at: "hard_error", model: env.MODEL, errors }));
     return fail(
       "extraction_failed",
       "書類をうまく読み取れませんでした。手で入力するか、撮り直してください",

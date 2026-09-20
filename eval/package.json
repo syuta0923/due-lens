@@ -4,16 +4,21 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "eval": "tsx run.ts"
+    "eval": "tsx run.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.76",
     "@syllabus/shared": "*",
     "ai": "^7.0.107",
+    "sharp": "^0.35.4",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@types/node": "^22.10.0",
     "tsx": "^4.20.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^5.0.1"
   }
 }
