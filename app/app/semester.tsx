@@ -1,7 +1,11 @@
 /**
  * S2 学期設定（骨組み）
  *
- * 9/24〜9/25 に、休講日・振替授業日の追加、祝日の自動反映（授業を行う祝日を外す）を足す。
+ * 聞くのは開始日・終了日だけ。**休講日・振替授業日はここでは聞かない**（仕様書 2）。
+ * 手で写す手間を省くアプリが、使う前に学年暦を手で写させたら本末転倒になるため。
+ * 空でも effectiveWeekday が祝日を自動判定するので破綻しない（4.3）。
+ *
+ * 追加したい人向けの導線は設定（S7）に置く。本来の埋め方は F12（学年暦を撮って取り込む）。
  * 祝日は保存せず holiday_jp から導出する（4.4）。
  */
 import { useState } from "react";
@@ -41,7 +45,8 @@ export default function SemesterScreen() {
       <Field label="終了日（YYYY-MM-DD）" value={end} onChange={setEnd} placeholder="2027-01-29" />
 
       <Text style={styles.note}>
-        祝日は自動で休講として扱います。授業を行う祝日・休講日・振替授業日の登録は次の画面で追加予定です。
+        祝日は自動で休講として扱います。大学独自の休講日・振替授業日がある場合は、
+        あとから設定で追加できます。先に登録しなくても読み込めます。
       </Text>
 
       <Pressable style={[styles.primary, !valid && styles.disabled]} onPress={onSave} disabled={!valid}>

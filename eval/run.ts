@@ -14,9 +14,9 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { buildDrafts, countReasons, type Semester } from "@syllabus/shared";
 import { runExtraction, type FilePart } from "../worker/src/extract";
+import { apiKeyNameOf, modelFor, thinkingOptions, type ApiKeys } from "../worker/src/provider";
 import { loadCases, type CaseMeta, type EvalCase } from "./lib/cases";
 import { preparePages, type PreparedPage } from "./lib/prepare";
 import {
@@ -39,6 +39,10 @@ const ROOT = path.resolve(HERE, "..");
  * --in-price / --out-price で上書きできる。
  */
 const PRICES: Record<string, Price> = {
+  // OpenAI（2026-09-22 に公式ページで確認）
+  "gpt-4o-mini": { input: 0.15, output: 0.6 },
+  "gpt-4.1-mini": { input: 0.4, output: 1.6 },
+  // Gemini（規約上いま使えないが、比較対象として残す）
   "gemini-2.5-flash-lite": { input: 0.1, output: 0.4 },
   "gemini-2.5-flash": { input: 0.3, output: 2.5 },
   "gemini-3.5-flash": { input: 1.5, output: 9.0 },
@@ -88,7 +92,7 @@ function parseArgs(argv: string[]): Args {
   const outPrice = flags.get("out-price");
 
   return {
-    models: list("model", "gemini-2.5-flash-lite"),
+    models: list("model", "gpt-4o-mini"),
     longEdges: list("long-edge", "1568").map(Number).filter((n) => Number.isFinite(n) && n > 0),
     cases: flags.has("cases") ? list("cases", "") : undefined,
     casesDir: path.resolve(ROOT, get("cases-dir", "eval/cases")),
@@ -110,25 +114,38 @@ function parseArgs(argv: string[]): Args {
   };
 }
 
-/** worker/.dev.vars に置いた API キーを読む。eval のためだけに 2 か所へ書かせない */
-async function loadApiKey(): Promise<string> {
-  const fromEnv = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  if (fromEnv) return fromEnv;
+/**
+ * worker/.dev.vars に置いた API キーを読む。eval のためだけに 2 か所へ書かせない。
+ * どのキーが要るかはモデル ID から決まる（provider.ts）ので、あるものを全部読んで渡す。
+ */
+async function loadApiKeys(): Promise<ApiKeys> {
+  const keys: Record<string, string | undefined> = {
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+  };
 
   try {
     const text = await readFile(path.join(ROOT, "worker/.dev.vars"), "utf8");
     for (const line of text.split(/\r?\n/)) {
-      const m = /^\s*GOOGLE_GENERATIVE_AI_API_KEY\s*=\s*(.+?)\s*$/.exec(line);
-      if (m?.[1]) return m[1].replace(/^["']|["']$/g, "");
+      const m = /^\s*(OPENAI_API_KEY|GOOGLE_GENERATIVE_AI_API_KEY)\s*=\s*(.+?)\s*$/.exec(line);
+      if (m?.[1] && m[2] && !keys[m[1]]) keys[m[1]] = m[2].replace(/^["']|["']$/g, "");
     }
   } catch {
-    /* 無ければ下のエラーへ */
+    /* 無ければ modelFor が必要なキー名つきで落とす */
   }
 
-  throw new Error(
-    "API キーがありません。worker/.dev.vars に GOOGLE_GENERATIVE_AI_API_KEY を書くか、\n" +
-      "環境変数に設定してください（--dry-run なら不要です）。",
-  );
+  return keys as ApiKeys;
+}
+
+/** 実行前に、要るキーが揃っているかをまとめて確かめる（1 件目で落ちるのを避ける） */
+function assertKeys(models: string[], keys: ApiKeys): void {
+  const missing = [...new Set(models.map(apiKeyNameOf))].filter((n) => !keys[n]);
+  if (missing.length > 0) {
+    throw new Error(
+      `API キーがありません: ${missing.join(", ")}\n` +
+        "worker/.dev.vars に書くか、環境変数に設定してください（--dry-run なら不要です）。",
+    );
+  }
 }
 
 // --- 実行 -----------------------------------------------------------------
@@ -170,7 +187,8 @@ const semesterOf = (meta: CaseMeta): Semester => ({
 async function runCase(
   c: EvalCase,
   pages: PreparedPage[],
-  model: ReturnType<ReturnType<typeof createGoogleGenerativeAI>>,
+  model: ReturnType<typeof modelFor>,
+  modelId: string,
   thinking: number | null,
 ): Promise<CaseResult> {
   const started = Date.now();
@@ -191,9 +209,10 @@ async function runCase(
       model,
       meta: { deviceId: "eval", semesterId: "eval", pro: true, ...c.meta },
       parts: toParts(pages),
-      ...(thinking == null
-        ? {}
-        : { providerOptions: { google: { thinkingConfig: { thinkingBudget: thinking } } } }),
+      ...(() => {
+        const providerOptions = thinkingOptions(modelId, thinking);
+        return providerOptions ? { providerOptions } : {};
+      })(),
     });
 
     const elapsedMs = Date.now() - started;
@@ -271,16 +290,17 @@ async function main(): Promise<void> {
     return;
   }
 
-  const google = createGoogleGenerativeAI({ apiKey: await loadApiKey() });
+  const keys = await loadApiKeys();
+  assertKeys(args.models, keys);
   const startedAt = new Date().toISOString();
   const runs: RunResult[] = [];
 
   for (const modelId of args.models) {
     for (const longEdge of args.longEdges) {
       const byCase = prepared.get(longEdge);
-      const model = google(modelId);
+      const model = modelFor(modelId, keys);
       const results = await pool(cases, args.concurrency, (c) =>
-        runCase(c, byCase?.get(c.id) ?? [], model, args.thinking),
+        runCase(c, byCase?.get(c.id) ?? [], model, modelId, args.thinking),
       );
       const run: RunResult = { model: modelId, longEdge, cases: results };
       runs.push(run);

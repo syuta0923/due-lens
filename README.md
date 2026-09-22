@@ -35,7 +35,12 @@ syllabus-calendar/
 ## セットアップ
 
 必要なもの：Node 20 以降、Android Studio、Android 10 以降の実機、Cloudflare アカウント、
-Google AI（Gemini）の API キー。
+OpenAI の API キー。
+
+モデル ID を変えるだけでプロバイダが切り替わる（`worker/src/provider.ts`）。`gemini-*` なら
+Google、それ以外は OpenAI を使い、`worker/wrangler.toml` の `MODEL` 1 行で差し替えられる。
+既定を OpenAI にしているのは、開発者が 18 歳未満で、Gemini API の規約（18 歳以上、保護者の
+同意による例外なし）を満たせないため。OpenAI は保護者の許可があれば 13 歳以上で利用できる。
 
 ```bash
 npm install
@@ -48,9 +53,9 @@ npm run typecheck
 モデルと画像の縮小サイズを、勘ではなく正解つきのテストセットで決める。
 
 ```bash
-npm run eval -- --dry-run                                        # APIキー不要の検算
-npm run eval -- --model gemini-2.5-flash-lite --long-edge 1568
-npm run eval -- --model gemini-2.5-flash-lite,gemini-3.6-flash --long-edge 1024,1568,2048
+npm run eval -- --dry-run                                  # APIキー不要の検算
+npm run eval -- --model gpt-4o-mini --long-edge 1568
+npm run eval -- --model gpt-4o-mini,gpt-4.1-mini --long-edge 1024,1568,2048
 ```
 
 プロンプト・スキーマ・検証・修復リトライは `worker/src` をそのまま使うので、
@@ -63,7 +68,7 @@ npm run eval -- --model gemini-2.5-flash-lite,gemini-3.6-flash --long-edge 1024,
 npx wrangler kv namespace create QUOTA          # 出力された id を wrangler.toml に書く
 cp worker/.dev.vars.example worker/.dev.vars    # API キーを書く（コミットしない）
 npm run worker:dev                              # http://localhost:8787
-npx wrangler secret put GOOGLE_GENERATIVE_AI_API_KEY   # デプロイ時
+npx wrangler secret put OPENAI_API_KEY          # デプロイ時
 npm run worker:deploy
 ```
 
@@ -93,9 +98,28 @@ npx expo run:android    # 開発ビルドを実機にインストール（Expo G
 
 ## 分かっていて割り切っていること
 
-- 端末 ID も購入状態（`pro`）もクライアントの自己申告で、偽装できる。実質の防衛線は
-  LLM 側の予算上限、Cloudflare のレート制限、リクエストサイズの上限に置いている。
-  購入状態のサーバー側検証（RevenueCat の Webhook / REST API との照合）は配布段階で入れる。
+### 中継 API は偽装できる
+
+`ExtractRequestMeta` の `deviceId` と `pro` はクライアントが送る値で、サーバーは検証していない。
+リポジトリが公開なので、抜け道も読めば分かる。隠さずに書いておく。
+
+| 抜け道 | 内容 | 現状 |
+| --- | --- | --- |
+| `pro: true` を送る | 無料枠の判定を飛ばせる | `PRO_HARD_LIMIT`（200 科目／端末・学期）で頭打ちにした |
+| `deviceId` を変える | KV のキーが変わり、枠が新品に戻る | **未対策**（Play Integrity が本来の答え） |
+
+防衛線は効く順にこの 4 つ。**1 が唯一の絶対的な歯止め**で、デプロイより先に設定する。
+
+1. **LLM 側の予算上限・使用量アラート**（月 1,000 円など）。他が全部破られても請求は止まる
+2. **購入状態のサーバー側検証**（RevenueCat の Webhook / REST API と照合）。配布段階で入れる
+3. **端末の正当性証明**（Play Integrity API）。`deviceId` 偽装への根本対策だが実装が重い
+4. **レート制限とサイズ上限**（IP 単位 1 分 6 回、5 ページ、12 MB）
+
+`pro` も KV に加算するようにしてあるので、騙られた場合も使用量が記録に残り、
+`pro_hard_limit` のログで検知できる。レート制限の KV は結果整合なので、
+同時リクエストでは上限をわずかに超えうる（暴走を止める目的には足りる）。
+
+### その他
 - 複数ページは最大 5 ページを 1 リクエストにまとめて送る。分割並列は `courses[]` の
   重複解決が必要になるため今回は採らない。
 - 複数の書類から同じ科目名を読んだときの統合は、確認画面でユーザーが紐付ける。

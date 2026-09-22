@@ -1,1 +1,4 @@
-GOOGLE_GENERATIVE_AI_API_KEY=your-key-here
+# MODEL に対応するキーだけあればよい（provider.ts が自動で選ぶ）
+OPENAI_API_KEY=your-key-here
+# MODEL を gemini-* に戻すとき用
+# GOOGLE_GENERATIVE_AI_API_KEY=your-key-here

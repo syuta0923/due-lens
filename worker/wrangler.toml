@@ -11,10 +11,11 @@ id = "PUT_YOUR_KV_NAMESPACE_ID_HERE"
 preview_id = "PUT_YOUR_PREVIEW_KV_NAMESPACE_ID_HERE"
 
 [vars]
-# モデルは 4.7 の eval で確定させる。差し替えはこの 1 行
-MODEL = "gemini-2.5-flash-lite"
+# モデルは 4.7 の eval で確定させる。差し替えはこの 1 行。
+# プロバイダはモデル ID から自動で決まる（gemini-* は Google、それ以外は OpenAI）
+MODEL = "gpt-4o-mini"
 # 開発中は緩めてよい。本番は 6 程度（6.3 の防衛線）
 RATE_LIMIT_PER_MINUTE = "6"
 
-# シークレット（wrangler secret put GOOGLE_GENERATIVE_AI_API_KEY）
+# シークレット（wrangler secret put OPENAI_API_KEY）
 # ローカル開発は worker/.dev.vars に書く

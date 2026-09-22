@@ -7,7 +7,6 @@
  *
  * API キーをアプリに含めないための中継。画像・PDF は保存しない（7.5）。
  */
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import {
   ACCEPTED_MIME,
   ExtractRequestMeta,
@@ -23,12 +22,16 @@ import {
   type QuotaState,
 } from "@syllabus/shared";
 import { runExtraction, type FilePart } from "./extract";
+import { modelFor } from "./provider";
 import { addCourses, checkQuota, rateLimited } from "./quota";
 
 export type Env = {
   QUOTA: KVNamespace;
+  /** モデル ID。プロバイダはここから自動で決まる（provider.ts） */
   MODEL: string;
-  GOOGLE_GENERATIVE_AI_API_KEY: string;
+  /** 使うのは MODEL に対応する 1 つだけ。両方置く必要はない */
+  OPENAI_API_KEY?: string;
+  GOOGLE_GENERATIVE_AI_API_KEY?: string;
   RATE_LIMIT_PER_MINUTE?: string;
 };
 
@@ -99,15 +102,19 @@ async function handleExtract(req: Request, env: Env): Promise<Response> {
     }
   }
 
-  // --- 抽出前の無料枠チェック（超えていれば LLM を呼ばない＝費用が発生しない） ---
+  // --- 抽出前の枠チェック（超えていれば LLM を呼ばない＝費用が発生しない） ---
   const pre = await checkQuota(env.QUOTA, meta.deviceId, meta.semesterId, meta.pro);
   if (!pre.allowed) {
+    // pro が上限に当たるのは正規の使い方では起きない。偽装の可能性があるので記録する
+    if (meta.pro) {
+      console.log(JSON.stringify({ at: "pro_hard_limit", used: pre.state.used }));
+      return fail("rate_limited", "この端末の読み込み上限に達しました", pre.state);
+    }
     return fail("paywall_required", "無料で読み込めるのは 1 学期 3 科目までです", pre.state);
   }
 
   // --- LLM 呼び出し（zod スキーマ 1 本から構造化出力・検証・型を導出） ---
-  const google = createGoogleGenerativeAI({ apiKey: env.GOOGLE_GENERATIVE_AI_API_KEY });
-  const model = google(env.MODEL);
+  const model = modelFor(env.MODEL, env);
 
   const parts: FilePart[] = await Promise.all(
     files.map(async (f) => {
