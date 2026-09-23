@@ -15,10 +15,15 @@ import { hardErrors } from "./validate";
 
 type GenerateObjectOptions = Parameters<typeof generateObject>[0];
 
-/** 画像は image、PDF は file で渡す（AI SDK の指定） */
-export type FilePart =
-  | { readonly type: "image"; readonly image: Uint8Array; readonly mediaType: string }
-  | { readonly type: "file"; readonly data: Uint8Array; readonly mediaType: string };
+/**
+ * 画像も PDF も file で渡す（AI SDK の指定）。
+ * 種類は mediaType（image/jpeg・application/pdf）で伝わるので、型は 1 つでよい。
+ */
+export type FilePart = {
+  readonly type: "file";
+  readonly data: Uint8Array;
+  readonly mediaType: string;
+};
 
 export type Usage = { inputTokens?: number; outputTokens?: number } | undefined;
 

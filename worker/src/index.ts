@@ -22,7 +22,7 @@ import {
   type QuotaState,
 } from "@syllabus/shared";
 import { runExtraction, type FilePart } from "./extract";
-import { modelFor } from "./provider";
+import { apiKeyNameOf, modelFor, providerOf } from "./provider";
 import { addCourses, checkQuota, rateLimited } from "./quota";
 
 export type Env = {
@@ -52,7 +52,7 @@ export default {
     const url = new URL(req.url);
 
     if (req.method === "GET" && url.pathname === "/health") {
-      return json({ ok: true, model: env.MODEL });
+      return json(await health(env));
     }
     if (req.method !== "POST" || url.pathname !== "/extract") {
       return fail("bad_request", "対応していないエンドポイントです");
@@ -66,6 +66,35 @@ export default {
     }
   },
 };
+
+/**
+ * 設定が揃っているかを 1 回の GET で確かめる（デプロイ前・キー配置後の確認用）。
+ *
+ * 設定漏れは POST /extract を投げるまで分からず、しかも modelFor の throw が
+ * "internal" に丸められて原因が見えない。キーと KV をここで名指しする。
+ * キーの値は返さない（有無だけ）。
+ */
+async function health(env: Env) {
+  const keyName = apiKeyNameOf(env.MODEL);
+  const hasKey = Boolean(env[keyName]);
+
+  // KV は id がプレースホルダのままだと本番で繋がらない。読めるかどうかで確かめる
+  let kv = false;
+  try {
+    await env.QUOTA.get("__health");
+    kv = true;
+  } catch {
+    kv = false;
+  }
+
+  return {
+    ok: hasKey && kv,
+    model: env.MODEL,
+    provider: providerOf(env.MODEL),
+    apiKey: { name: keyName, present: hasKey },
+    kv,
+  };
+}
 
 async function handleExtract(req: Request, env: Env): Promise<Response> {
   const started = Date.now();
@@ -117,12 +146,11 @@ async function handleExtract(req: Request, env: Env): Promise<Response> {
   const model = modelFor(env.MODEL, env);
 
   const parts: FilePart[] = await Promise.all(
-    files.map(async (f) => {
-      const data = new Uint8Array(await f.arrayBuffer());
-      return f.type === "application/pdf"
-        ? ({ type: "file", data, mediaType: f.type } as const)
-        : ({ type: "image", image: data, mediaType: f.type } as const);
-    }),
+    files.map(async (f) => ({
+      type: "file" as const,
+      data: new Uint8Array(await f.arrayBuffer()),
+      mediaType: f.type,
+    })),
   );
 
   // 呼び出しと修復リトライ（4.5）は extract.ts に置き、eval（4.7）と共有する

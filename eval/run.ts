@@ -4,8 +4,8 @@
  * 用途は 3 つ：①モデルの選定 ②画像の縮小サイズの決定 ③リグレッション検知。
  *
  *   npm run eval -w eval -- --dry-run
- *   npm run eval -w eval -- --model gemini-2.5-flash-lite --long-edge 1568
- *   npm run eval -w eval -- --model gemini-2.5-flash-lite,gemini-3.6-flash --long-edge 1024,1568,2048
+ *   npm run eval -w eval -- --model gpt-4o-mini --long-edge 1568
+ *   npm run eval -w eval -- --model gpt-4o-mini,gpt-4.1-mini --long-edge 1024,1568,2048
  *
  * Worker を経由せず LLM を直接呼ぶ。KV も課金も挟まずモデル × 長辺を総当たりできるため。
  * ただしプロンプト・スキーマ・検証・修復リトライは worker/src を import して共有しており、
@@ -167,11 +167,7 @@ async function pool<T, R>(items: T[], limit: number, fn: (x: T) => Promise<R>): 
 }
 
 const toParts = (pages: PreparedPage[]): FilePart[] =>
-  pages.map((p) =>
-    p.mediaType === "application/pdf"
-      ? ({ type: "file", data: p.data, mediaType: p.mediaType } as const)
-      : ({ type: "image", image: p.data, mediaType: p.mediaType } as const),
-  );
+  pages.map((p) => ({ type: "file" as const, data: p.data, mediaType: p.mediaType }));
 
 /** 学期の設定。eval では休講日・振替日を入れない（書類だけから決まる精度を測るため） */
 const semesterOf = (meta: CaseMeta): Semester => ({
