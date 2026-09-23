@@ -5,7 +5,7 @@
  * 直近の締切一覧は 9/27 に足す。
  */
 import { useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { buildDrafts, type ExtractRequestMeta } from "@syllabus/shared";
@@ -13,11 +13,15 @@ import { extract, isSuccess, type Attachment } from "../lib/extract";
 import { getDeviceId, todayLocal } from "../lib/device";
 import { presentPaywall } from "../lib/purchases";
 import { useAppStore } from "../store/useAppStore";
+import { Button } from "../components/Button";
+import { Card } from "../components/Card";
+import { spacing, type, useTheme } from "../lib/theme";
 
 export default function Home() {
   const [busy, setBusy] = useState<string | null>(null);
   const { pro, remainingCourses, setDrafts, setRemaining, setPro } = useAppStore();
   const semester = useAppStore((s) => s.semesters.find((x) => x.id === s.currentSemesterId) ?? null);
+  const { colors } = useTheme();
 
   async function onRead() {
     if (!semester) {
@@ -69,45 +73,72 @@ export default function Home() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.label}>学期</Text>
-        <Text style={styles.value}>
-          {semester ? `${semester.name}（${semester.start} 〜 ${semester.end}）` : "未設定"}
+      {/* 学期が未設定だと読み込めないので、そのときだけ色を変えて誘導する */}
+      <Card tone={semester ? "normal" : "accent"}>
+        <Text
+          style={[
+            type.labelMedium,
+            { color: semester ? colors.onSurfaceVariant : colors.onPrimaryContainer },
+          ]}
+        >
+          学期
         </Text>
-        <Pressable onPress={() => router.push("/semester")} hitSlop={8}>
-          <Text style={styles.link}>{semester ? "学期を編集" : "学期を設定する"}</Text>
+        <Text
+          style={[
+            type.titleMedium,
+            { color: semester ? colors.onSurface : colors.onPrimaryContainer },
+          ]}
+        >
+          {semester ? semester.name : "未設定"}
+        </Text>
+        {semester ? (
+          <Text style={[type.bodyMedium, { color: colors.onSurfaceVariant }]}>
+            {semester.start} 〜 {semester.end}
+          </Text>
+        ) : (
+          <Text style={[type.bodyMedium, { color: colors.onPrimaryContainer }]}>
+            開始日と終了日を決めると読み込めます
+          </Text>
+        )}
+        <Pressable
+          onPress={() => router.push("/semester")}
+          hitSlop={12}
+          accessibilityRole="button"
+          style={styles.cardLink}
+        >
+          <Text
+            style={[
+              type.labelLarge,
+              { color: semester ? colors.primary : colors.onPrimaryContainer },
+            ]}
+          >
+            {semester ? "学期を編集" : "学期を設定する"}
+          </Text>
         </Pressable>
-      </View>
+      </Card>
 
-      <Pressable style={styles.primary} onPress={onRead} disabled={busy !== null}>
-        {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>書類を読み込む</Text>}
-      </Pressable>
-      {busy ? <Text style={styles.busy}>{busy}</Text> : null}
+      <Button
+        label="書類を読み込む"
+        onPress={onRead}
+        large
+        busy={busy !== null}
+      />
 
-      <Text style={styles.quota}>
-        {pro ? "学期パス：科目数は無制限です" : `無料で読み込める残り：${remainingCourses} 科目`}
+      <Text style={[type.bodyMedium, styles.status, { color: colors.onSurfaceVariant }]}>
+        {busy ??
+          (pro ? "学期パス：科目数は無制限です" : `無料で読み込める残り：${remainingCourses} 科目`)}
       </Text>
 
-      <Pressable onPress={() => router.push("/settings")} hitSlop={8}>
-        <Text style={styles.link}>設定</Text>
-      </Pressable>
+      <View style={styles.footer}>
+        <Button label="設定" onPress={() => router.push("/settings")} variant="text" />
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, gap: 16 },
-  card: { backgroundColor: "#F4F6FA", borderRadius: 12, padding: 16, gap: 6 },
-  label: { fontSize: 12, color: "#667" },
-  value: { fontSize: 16, fontWeight: "600" },
-  primary: {
-    backgroundColor: "#2F6FED",
-    borderRadius: 12,
-    paddingVertical: 18,
-    alignItems: "center",
-  },
-  primaryText: { color: "#fff", fontSize: 18, fontWeight: "700" },
-  busy: { textAlign: "center", color: "#667" },
-  quota: { textAlign: "center", color: "#445" },
-  link: { color: "#2F6FED", fontWeight: "600" },
+  container: { padding: spacing.lg, gap: spacing.lg },
+  cardLink: { marginTop: spacing.sm, alignSelf: "flex-start" },
+  status: { textAlign: "center" },
+  footer: { alignItems: "center", marginTop: spacing.sm },
 });

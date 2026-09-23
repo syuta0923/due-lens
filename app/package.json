@@ -10,6 +10,8 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~57.0.16",
+    "@expo/ui": "~57.0.19",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@syllabus/shared": "*",
     "expo": "~57.0.24",
