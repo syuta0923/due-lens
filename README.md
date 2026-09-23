@@ -19,10 +19,11 @@
 
 ```
 syllabus-calendar/
-├─ app/      … Expo（React Native / TypeScript）Android アプリ
-│  ├─ app/   … 画面（Expo Router）
-│  ├─ lib/   … extract / calendar / purchases / device
-│  └─ store/ … Zustand ＋ AsyncStorage
+├─ app/         … Expo（React Native / TypeScript）Android アプリ
+│  ├─ app/        … 画面（Expo Router）
+│  ├─ components/ … Material Design 3 の部品（Button / Card / TextField / ListItem）
+│  ├─ lib/        … extract / calendar / purchases / device / theme
+│  └─ store/      … Zustand ＋ AsyncStorage
 ├─ shared/   … アプリ・Worker・eval が共有する唯一の定義
 │  └─ src/   … schema（AI 出力）/ api（HTTP 契約）/ schedule（回数→日付）/ review（要確認判定）
 ├─ worker/   … 中継 API（Cloudflare Workers）
@@ -64,13 +65,40 @@ npm run eval -- --model gpt-4o-mini,gpt-4.1-mini --long-edge 1024,1568,2048
 
 ### 中継 API（worker）
 
+**キーを作る前に、OpenAI 側で使用量の上限と請求アラートを設定し、自動チャージ
+（auto-recharge）をオフにする**（防衛線 1）。OpenAI は前払いなので、自動チャージが有効だと
+「残高が尽きれば止まる」という一番確実な歯止めが消える。
+
+ローカル開発に **Cloudflare のアカウントは要らない**。`wrangler dev` は PC の中で動き、
+KV もローカルのものが使われる（`wrangler.toml` の id はプレースホルダのままでよい）。
+
 ```bash
-npx wrangler kv namespace create QUOTA          # 出力された id を wrangler.toml に書く
 cp worker/.dev.vars.example worker/.dev.vars    # API キーを書く（コミットしない）
 npm run worker:dev                              # http://localhost:8787
-npx wrangler secret put OPENAI_API_KEY          # デプロイ時
+curl http://localhost:8787/health               # 設定が揃ったかの確認（下記）
+```
+
+デプロイするときだけアカウントと KV が要る。応募には必須ではない。
+
+```bash
+npx wrangler login
+npx wrangler kv namespace create QUOTA          # 出力された id を wrangler.toml に書く
+npx wrangler secret put OPENAI_API_KEY          # ファイルではなくシークレットに置く
 npm run worker:deploy
 ```
+
+`/health` はキーと KV が揃っているかを返す（キーの値は返さない）。
+`ok: true` になるまで `/extract` は通らない。
+
+```json
+{ "ok": true, "model": "gpt-4o-mini", "provider": "openai",
+  "apiKey": { "name": "OPENAI_API_KEY", "present": true }, "kv": true }
+```
+
+- **`.dev.vars` を置いてから `worker:dev` を起動する。** 起動中に作っても読み込まれず、
+  `present: false` のままになる（一度止めて起動し直す）。
+- ローカルの `kv` は常に `true`（wrangler が用意するローカル KV を見ているため）。
+  `wrangler.toml` の id が正しいかは、デプロイ後の `/health` で確かめる。
 
 ### アプリ（app）
 
@@ -119,10 +147,26 @@ npx expo run:android    # 開発ビルドを実機にインストール（Expo G
 `pro_hard_limit` のログで検知できる。レート制限の KV は結果整合なので、
 同時リクエストでは上限をわずかに超えうる（暴走を止める目的には足りる）。
 
+### 開発中は送った書類が OpenAI のモデル改善に使われる
+
+中継 API は画像・PDF を保存しない。ただし**「保存しない」のはこのリポジトリのコードの話で、
+LLM 側の扱いは別**なので、そこも書いておく。
+
+開発中は OpenAI のデータ共有を有効にしている。送信内容がモデル改善に使われる代わりに、
+小型モデルなら 1 日 250 万トークンまで無料で使える。eval の総当たりを何度も回すため、
+この枠を使っている。
+
+**そのため、通すのは自分のシラバスだけに限っている。**他人の書類を扱う前と、実際に配布する
+段階では、共有を無効にして有料枠（送信内容が学習に使われない枠）に切り替える（仕様書 7.4・7.5）。
+
+評価ケースを公開リポジトリに入れていない理由（担当教員名などの個人情報）と、同じ線引きで判断している。
+
 ### その他
 - 複数ページは最大 5 ページを 1 リクエストにまとめて送る。分割並列は `courses[]` の
   重複解決が必要になるため今回は採らない。
 - 複数の書類から同じ科目名を読んだときの統合は、確認画面でユーザーが紐付ける。
+- 応募には Cloudflare へのデプロイは要らない（配布しない部門のため）。`wrangler dev` は
+  アカウント無しで動き、実機からは同一 Wi-Fi の LAN アドレスで届く。
 
 ## 今後の構想
 

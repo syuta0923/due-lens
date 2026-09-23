@@ -11,20 +11,21 @@
 npm run eval -w eval -- --dry-run
 
 # 1 モデル 1 サイズで回す
-npm run eval -w eval -- --model gemini-2.5-flash-lite --long-edge 1568
+npm run eval -w eval -- --model gpt-4o-mini --long-edge 1568
 
 # モデル × 長辺を総当たりして比較表を出す（4.7 の用途 1・2）
-npm run eval -w eval -- --model gemini-2.5-flash-lite,gemini-3.6-flash --long-edge 1024,1568,2048
+npm run eval -w eval -- --model gpt-4o-mini,gpt-4.1-mini --long-edge 1024,1568,2048
 ```
 
-API キーは `worker/.dev.vars` の `GOOGLE_GENERATIVE_AI_API_KEY` を読む（環境変数でも可）。
+API キーは `worker/.dev.vars` を読む（環境変数でも可）。どのキーが要るかはモデル ID から
+決まる（`gemini-*` なら `GOOGLE_GENERATIVE_AI_API_KEY`、それ以外は `OPENAI_API_KEY`）。
 結果は `eval/out/<日時>.json` に残るので、プロンプトを変えた前後で比較できる。
 
 ### 主なオプション
 
 | オプション | 既定値 | 説明 |
 | --- | --- | --- |
-| `--model` | `gemini-2.5-flash-lite` | カンマ区切りで複数指定できる |
+| `--model` | `gpt-4o-mini` | カンマ区切りで複数指定できる |
 | `--long-edge` | `1568` | 送信前に縮小する長辺。カンマ区切り可 |
 | `--cases` | 全件 | `--cases 001,003` で絞る |
 | `--dry-run` | — | LLM を呼ばない。正解ファイルの検算とサイズ確認だけ |
@@ -65,7 +66,7 @@ cases/
 
 ```
 モデル                      長辺   科目名    date    回数    type   取り零  余計  中央ms   KB/頁   円/頁
-gemini-2.5-flash-lite      1568   100.0%   92.3%  100.0%  96.2%      1     0    3821      39    0.21
+gpt-4o-mini                1568   100.0%   92.3%  100.0%  96.2%      1     0    3821      39    0.25
 ```
 
 - **科目名 / date / 回数 / type** … フィールド単位の一致率（4.7）。母数は「正解と対応づいた予定」
