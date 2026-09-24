@@ -4,6 +4,7 @@
  * 画像は送る前に長辺を縮小する（費用と速度のため。サイズは 4.7 の eval で確定させる）。
  */
 import Constants from "expo-constants";
+import { File } from "expo-file-system";
 import * as ImageManipulator from "expo-image-manipulator";
 import {
   IMAGE_LONG_EDGE,
@@ -61,18 +62,24 @@ export async function extract(
   const form = new FormData();
   form.append("meta", JSON.stringify(meta));
   for (const a of await Promise.all(attachments.map((x) => shrink(x)))) {
-    // React Native の FormData はこの形のオブジェクトをファイルとして扱う
-    form.append("files", { uri: a.uri, type: a.mimeType, name: a.name } as unknown as Blob);
+    // Expo の fetch（expo/fetch）は React Native 流の { uri, type, name } を受け付けず
+    // "Unsupported FormDataPart implementation" で落ちる。Blob として振る舞う
+    // expo-file-system の File を渡す（content-type は拡張子から決まる）
+    form.append("files", new File(a.uri), a.name);
   }
 
   try {
     const res = await fetch(`${API_BASE}/extract`, { method: "POST", body: form });
     return (await res.json()) as ExtractResponse;
-  } catch {
+  } catch (e) {
+    // 利用者には一律の文言を出すが、原因（接続先・JSON 以外の応答など）はログに残す
+    console.warn("[extract] 通信に失敗", API_BASE, e);
     return {
       ok: false,
       code: "internal",
-      message: "通信に失敗しました。電波の良い場所で試してください",
+      message:
+        "通信に失敗しました。電波の良い場所で試してください" +
+        (__DEV__ ? `\n\n[開発用] ${API_BASE}\n${String(e)}` : ""),
     } satisfies ExtractError;
   }
 }

@@ -10,6 +10,12 @@ binding = "QUOTA"
 id = "PUT_YOUR_KV_NAMESPACE_ID_HERE"
 preview_id = "PUT_YOUR_PREVIEW_KV_NAMESPACE_ID_HERE"
 
+# wrangler dev は既定で 127.0.0.1 にしか開かず、エミュレータや実機から LAN アドレス
+# （app.json の apiBaseUrl）で届かない。デモ動画も LAN 経由で撮るので全インターフェースで待つ
+[dev]
+ip = "0.0.0.0"
+port = 8787
+
 [vars]
 # モデルは 4.7 の eval で確定させる。差し替えはこの 1 行。
 # gpt-4o-mini は 9/24 の eval で候補から外した（書類に無い日付を作る・画像のトークンが約 11 倍）

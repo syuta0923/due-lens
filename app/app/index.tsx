@@ -67,7 +67,9 @@ export default function Home() {
 
     setRemaining(res.quota.remaining);
     // 回数 → 日付の変換と要確認の判定はここ（アプリ側）で決定的に行う（4.3・4.6）
-    setDrafts(buildDrafts(res.extraction, semester));
+    // 授業日（class）は確認画面にも出さず、登録しない。毎週同じなので時間割で足り、
+    // 15 科目 × 30 回の授業が課題と試験の締切を埋もれさせる（第5版）
+    setDrafts(buildDrafts(res.extraction, semester).filter((d) => d.type !== "class"));
     router.push("/review");
   }
 
