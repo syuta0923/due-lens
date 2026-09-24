@@ -4,8 +4,8 @@
  * 用途は 3 つ：①モデルの選定 ②画像の縮小サイズの決定 ③リグレッション検知。
  *
  *   npm run eval -w eval -- --dry-run
- *   npm run eval -w eval -- --model gpt-4o-mini --long-edge 1568
- *   npm run eval -w eval -- --model gpt-4o-mini,gpt-4.1-mini --long-edge 1024,1568,2048
+ *   npm run eval -w eval -- --model gpt-4.1-mini --long-edge 1568
+ *   npm run eval -w eval -- --model gpt-4.1-mini --long-edge 1024,1568,2048
  *
  * Worker を経由せず LLM を直接呼ぶ。KV も課金も挟まずモデル × 長辺を総当たりできるため。
  * ただしプロンプト・スキーマ・検証・修復リトライは worker/src を import して共有しており、
@@ -92,7 +92,7 @@ function parseArgs(argv: string[]): Args {
   const outPrice = flags.get("out-price");
 
   return {
-    models: list("model", "gpt-4o-mini"),
+    models: list("model", "gpt-4.1-mini"),
     longEdges: list("long-edge", "1568").map(Number).filter((n) => Number.isFinite(n) && n > 0),
     cases: flags.has("cases") ? list("cases", "") : undefined,
     casesDir: path.resolve(ROOT, get("cases-dir", "eval/cases")),

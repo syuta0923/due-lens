@@ -12,8 +12,9 @@ preview_id = "PUT_YOUR_PREVIEW_KV_NAMESPACE_ID_HERE"
 
 [vars]
 # モデルは 4.7 の eval で確定させる。差し替えはこの 1 行。
+# gpt-4o-mini は 9/24 の eval で候補から外した（書類に無い日付を作る・画像のトークンが約 11 倍）
 # プロバイダはモデル ID から自動で決まる（gemini-* は Google、それ以外は OpenAI）
-MODEL = "gpt-4o-mini"
+MODEL = "gpt-4.1-mini"
 # 開発中は緩めてよい。本番は 6 程度（6.3 の防衛線）
 RATE_LIMIT_PER_MINUTE = "6"
 

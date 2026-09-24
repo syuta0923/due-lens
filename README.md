@@ -1,13 +1,15 @@
 # シラバスカレンダー（仮）
 
-シラバスや課題一覧の PDF・写真を読み込み、授業日・課題締切・試験日を自動でカレンダーに登録する
-大学生向けの Android アプリ。RevenueCat Shipaton 2026 / Next Gen Award 応募作品。
+**課題の締切を手軽に登録し、通知で見落とさないようにする**学生向けの Android アプリ。
+課題の案内・シラバス・課題一覧の PDF や写真、スクショを読み込むと、課題の締切と試験日を取り出して
+カレンダーに登録し、締切の前に通知する（通知は実装予定）。RevenueCat Shipaton 2026 / Next Gen Award 応募作品。
 
 仕様書：[syllabus-calendar-spec.md](./syllabus-calendar-spec.md)
 
 ## 特徴
 
-- **写真 1 枚から学期分の予定が入る** — 画像・PDF をそのまま LLM に渡し、科目と予定を構造化して取り出す。
+- **撮るだけで締切が入る** — 課題の案内の写真やスクショ、PDF をそのまま LLM に渡し、課題の締切と試験日を構造化して取り出す。
+- **締切の前に通知する**（実装予定） — 紙・PDF・Teams とばらばらに配られる締切を 1 か所に集め、見落としを防ぐ。
 - **「第 8 回」が実際の日付になる** — 振替授業日・休講日・祝日・授業を行う祝日を考慮して、
   回数を日付に変換する（判定順は振替＞休講＞祝日＞通常）。計算はすべてアプリ側のコードで決定的に行う。
 - **AI の誤りをコードで検出する** — LLM の自己申告スコアは使わない。書類にあった日付表記（`date_raw`）と
@@ -55,8 +57,8 @@ npm run typecheck
 
 ```bash
 npm run eval -- --dry-run                                  # APIキー不要の検算
-npm run eval -- --model gpt-4o-mini --long-edge 1568
-npm run eval -- --model gpt-4o-mini,gpt-4.1-mini --long-edge 1024,1568,2048
+npm run eval -- --model gpt-4.1-mini --long-edge 1568
+npm run eval -- --model gpt-4.1-mini --long-edge 1024,1568,2048
 ```
 
 プロンプト・スキーマ・検証・修復リトライは `worker/src` をそのまま使うので、
@@ -91,7 +93,7 @@ npm run worker:deploy
 `ok: true` になるまで `/extract` は通らない。
 
 ```json
-{ "ok": true, "model": "gpt-4o-mini", "provider": "openai",
+{ "ok": true, "model": "gpt-4.1-mini", "provider": "openai",
   "apiKey": { "name": "OPENAI_API_KEY", "present": true }, "kv": true }
 ```
 
