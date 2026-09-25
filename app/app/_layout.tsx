@@ -29,7 +29,7 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: colors.background },
         }}
       >
-        <Stack.Screen name="index" options={{ title: "シラバスカレンダー" }} />
+        <Stack.Screen name="index" options={{ title: "DueLens" }} />
         <Stack.Screen name="semester" options={{ title: "学期の設定" }} />
         <Stack.Screen name="review" options={{ title: "確認・編集" }} />
         <Stack.Screen name="edit" options={{ title: "予定を編集", presentation: "modal" }} />

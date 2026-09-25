@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "シラバスカレンダー",
+    "name": "DueLens",
     "slug": "syllabus-calendar",
     "scheme": "syllabuscalendar",
     "version": "0.1.0",
@@ -43,7 +43,7 @@
     ],
     "extra": {
       "apiBaseUrl": "http://192.168.11.14:8787",
-      "revenueCatAndroidKey": "test_REPLACE_ME"
+      "revenueCatAndroidKey": "test_tSFfEmHYYCvKEQvNUoXvPAMoJlC"
     }
   }
 }
