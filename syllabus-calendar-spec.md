@@ -730,6 +730,37 @@ const { object } = await generateObject({
 - 001の「ガイダンス」（授業日）は取り零すことがある。授業日はアプリで捨てるので実害は無い
 - [ ] RevenueCatのTest Storeのキー（予定では9/26）。キーが入ったら購入→チェックが使えるまでを通す
 - [ ] 編集で予定名や日付を変えると別の予定として登録される（古い予定はカレンダーに残る）
+- [ ] （時間があれば）「画像のここから読み取った」演出。A：読み込み中に画像の上をスキャン線が走る（半日・リビルド不要）、B：確認画面で元の画像と元の記述を並べる（半日・画像のみ、PDFは不可）、C：画像の該当箇所を枠で囲む（端末OCRで位置を取る必要があり1〜2日＋リビルド、提出後）。**9/25：いったん見送り**
+
+##### 明日（9/26）の入り口
+
+9/25の終わりの状態：「読み込む（写真・スクショ・PDF・カメラ）→確認・編集→カレンダー登録→通知→締切一覧で完了にする」が通り、RevenueCat（Test Store）で購入・復元まで動く。アプリ名はDueLens、リポジトリは `syuta0923/due-lens`（Private）。予定表（8章）より前倒しで、9/27の「PDF・編集」までは済んでいる。
+
+この順で入る。
+
+1. **無料枠→ペイウォールの通し**（デモ動画の4番目の場面）。まだ一度も端から端まで見ていない。3科目を読み込んだあと4科目目でWorkerが `paywall_required` を返し、ペイウォールが出るか。今のエミュレータは購入済み（pro）なので、確かめる前にアプリのデータを消すか別の端末IDにする。KVの中身は `wrangler dev` のローカルKV
+2. **二重登録を直す**：同じ書類を2回読むと、予定名の違い（「課題提出締切」「夏休み課題提出締切」）で別の予定になる。`eventKey` を科目＋種別＋日付＋時刻に寄せるか決める。編集で予定名・日付を変えると古い予定がカレンダーに残る件も一緒に考える
+3. **READMEを英語で書く**（審査員向け）。差別化の3点（「第n回」を日付にする、読み違いを理由つきで見せる、大学の課題に絞った学期単位の課金）を前に出す。Test Storeで動かしていることも書く（6.1）
+4. **デモ動画の準備**（撮影は9/29の予定）：エミュレータの言語を日本語に、見せる書類を決める（002・003は「第1回」が日付にならないので、曜日が書いてある書類があると目玉が映る）、英語字幕の文面
+5. 公開前の作業（上の「公開前にやること」）：`.claude/` などを残すか、リポジトリをPublicにする時期、`gh` のトークン
+6. 余裕があれば：ペイウォールの全角数字、UIの見直し、「画像のここから読み取った」演出（見送り中）
+
+環境の起こし方（9/25に踏んだ罠を反映）：
+
+```bash
+npm run worker:dev                                   # 別ターミナルで。0.0.0.0:8787 で待つ
+curl http://192.168.11.14:8787/health                # ok:true、model が gpt-4.1-mini
+emulator -avd Pixel_7
+adb reverse tcp:8081 tcp:8081
+cd app && npx expo start --dev-client --port 8081    # CI=1 を付けない
+```
+
+- アプリは `adb shell am start -a android.intent.action.VIEW -d "syllabuscalendar://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081" com.syllabuscalendar.app` で開ける。起動直後は真っ白な時間が長い（1分近く）ので待つ
+- **`app.json` の `extra`（キー・`apiBaseUrl`）を変えたらリビルド**：`cd app && npx expo run:android --no-bundler`（17分）。Metroの再起動では変わらない
+- 画面が真っ黒なのはスリープ。`adb shell input keyevent KEYCODE_WAKEUP` と `adb shell svc power stayon true`
+- エミュレータが「Can't find service: activity」を返し続けたら壊れている。`adb emu kill` で落として起動し直す
+- Git Bashの `adb shell` は `MSYS_NO_PATHCONV=1` を付ける（`/sdcard/...` がWindowsのパスに化ける）
+- テスト用の画像は `/sdcard/Pictures/002.jpg`、PDFは `/sdcard/Download/002.pdf`
 
 #### 9/24：evalの初実測と、主目的の確定
 
