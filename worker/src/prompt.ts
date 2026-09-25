@@ -22,8 +22,11 @@ export function buildPrompt(meta: ExtractRequestMeta): string {
 - date は date_raw を YYYY-MM-DD に正規化したものです。確定できなければ null にしてください。
 - date_basis は、日付が書類に明記されていれば "explicit"、他の記述から推測したなら "inferred"、
   「第8回」のように回数しか書かれていなければ "session_only" にしてください。
-- date と session_number は、**どちらか一方が必ず埋まっている**必要があります。両方 null は禁止です。
 - session_number は「第n回」の n です。日付への変換はアプリ側で行うので、あなたは変換しないでください。
+- 「最初の授業」「初回」「後期最初の授業」は session_number を 1 にし、date は null、date_basis は "session_only" にしてください。
+- 「次回の授業」「最終回」「授業中に指示する」のように、日付にも回数にも決められない表現のときは、**日付を推測せず** date と session_number を両方 null、date_basis を "session_only" にしてください（利用者が確認画面で入力します）。
+- 「◯日までに提出」「◯日以降は提出不可」「◯日締切」は、どれも課題の締切なので type は "assignment" です。
+- date_basis の "inferred" は、書類の中の別の日付から確実に導ける場合（「提出日の翌日」など）だけに使ってください。
 - source_text には、その予定の根拠となった書類上の一文をそのまま入れてください。
 - page は、その記述があったページ番号（1 始まり）です。
 - course_index は courses 配列の添字です。範囲外の値を使わないでください。

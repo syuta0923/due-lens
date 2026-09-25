@@ -11,8 +11,17 @@ export function hardErrors(x: Extraction): string[] {
   const errors: string[] = [];
 
   x.events.forEach((e, i) => {
-    if (e.date == null && e.session_number == null) {
-      errors.push(`events[${i}]: date と session_number が両方 null です。必ずどちらかを埋めてください。`);
+    // date と session_number が両方 null なのは誤りにしない。「最終回」のように決められない
+    // 表現で両方を埋めさせると、書類に無い日付を創作させることになる（9/24 のケース 002）。
+    // アプリ側で「日付を入力してください」と要確認に出す。
+    // ただし書類に日付の表記（date_raw）があるのに date が空なのは、読み取りの失敗なのでやり直させる
+    // （9/25：「9／25（金）」の「金」を「登」と読み、date を null にして返した。ケース 002）
+    // 数字を含むときだけにする。「後学期の授業時」のような言葉を date_raw に書くこともあり、
+    // それでやり直させると、LLM が予定ごと消して辻褄を合わせてしまう（ケース 003 の小テスト）
+    if (e.date_raw != null && /[0-9０-９]/.test(e.date_raw) && e.date == null && e.session_number == null) {
+      errors.push(
+        `events[${i}]: date_raw が "${e.date_raw}" なのに date が null です。date_raw の日付を YYYY-MM-DD にしてください。`,
+      );
     }
     if (e.course_index >= x.courses.length) {
       errors.push(

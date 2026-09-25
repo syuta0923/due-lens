@@ -97,3 +97,12 @@ export function formatJa(s: string): string {
   const { m, d } = parseDate(s);
   return `${m}/${d}（${WEEKDAY_TO_KANJI[weekdayOf(s)]}）`;
 }
+
+/** a から b まで何日か（b が後なら正）。締切一覧の「あと N 日」に使う */
+export function daysBetween(a: string, b: string): number {
+  const toDays = (s: string) => {
+    const { y, m, d } = parseDate(s);
+    return Date.UTC(y, m - 1, d) / 86_400_000;
+  };
+  return toDays(b) - toDays(a);
+}

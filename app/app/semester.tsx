@@ -11,7 +11,8 @@
 import { useState } from "react";
 import { ScrollView, StyleSheet, Text } from "react-native";
 import { router } from "expo-router";
-import { isValidDate, type Semester } from "@syllabus/shared";
+import { defaultSemester, isValidDate, type Semester } from "@syllabus/shared";
+import { todayLocal } from "../lib/device";
 import { useAppStore } from "../store/useAppStore";
 import { Button } from "../components/Button";
 import { TextField } from "../components/TextField";
@@ -22,9 +23,11 @@ export default function SemesterScreen() {
   const upsertSemester = useAppStore((s) => s.upsertSemester);
   const { colors } = useTheme();
 
-  const [name, setName] = useState(current?.name ?? "2026年度 後期");
-  const [start, setStart] = useState(current?.start ?? "2026-09-28");
-  const [end, setEnd] = useState(current?.end ?? "2027-01-29");
+  // 未設定なら、読み込み時に作るのと同じ仮の学期を初期値にする
+  const base = current ?? defaultSemester(todayLocal());
+  const [name, setName] = useState(base.name);
+  const [start, setStart] = useState(base.start);
+  const [end, setEnd] = useState(base.end);
 
   // 何が悪いのかをその場で出す。保存ボタンが押せない理由が分からないのを避ける
   const startError = isValidDate(start) ? undefined : "YYYY-MM-DD の形式で入力してください";
@@ -37,13 +40,14 @@ export default function SemesterScreen() {
 
   function onSave() {
     const s: Semester = {
-      id: current?.id ?? `sem-${Date.now()}`,
+      // id は変えない。無料枠（6.3）のキーなので、日付を直しただけで枠がリセットされないように
+      id: base.id,
       name,
       start,
       end,
-      noClassDates: current?.noClassDates ?? [],
-      classHolidays: current?.classHolidays ?? [],
-      makeupDays: current?.makeupDays ?? [],
+      noClassDates: base.noClassDates,
+      classHolidays: base.classHolidays,
+      makeupDays: base.makeupDays,
     };
     upsertSemester(s);
     router.back();

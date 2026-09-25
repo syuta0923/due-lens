@@ -1,6 +1,7 @@
 import { Stack } from "expo-router";
 import { useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
+import { setupNotifications } from "../lib/notify";
 import { configure, fetchIsPro } from "../lib/purchases";
 import { useAppStore } from "../store/useAppStore";
 import { type, useTheme } from "../lib/theme";
@@ -11,6 +12,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     configure();
+    setupNotifications();
     void fetchIsPro().then(setPro);
   }, [setPro]);
 
@@ -30,6 +32,7 @@ export default function RootLayout() {
         <Stack.Screen name="index" options={{ title: "シラバスカレンダー" }} />
         <Stack.Screen name="semester" options={{ title: "学期の設定" }} />
         <Stack.Screen name="review" options={{ title: "確認・編集" }} />
+        <Stack.Screen name="edit" options={{ title: "予定を編集", presentation: "modal" }} />
         <Stack.Screen name="settings" options={{ title: "設定" }} />
       </Stack>
     </>

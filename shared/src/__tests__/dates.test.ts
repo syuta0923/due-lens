@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  daysInMonth, eachDate, formatJa, isLeapYear, isValidDate, nextDate, weekdayOf,
+  daysBetween, daysInMonth, eachDate, formatJa, isLeapYear, isValidDate, nextDate, weekdayOf,
 } from "../dates";
 
 describe("dates", () => {
@@ -48,5 +48,14 @@ describe("dates", () => {
 
   it("表示用フォーマット", () => {
     expect(formatJa("2026-11-17")).toBe("11/17（火）");
+  });
+});
+
+describe("daysBetween", () => {
+  it("月・年をまたいで日数を数える", () => {
+    expect(daysBetween("2026-09-25", "2026-09-25")).toBe(0);
+    expect(daysBetween("2026-09-25", "2026-10-01")).toBe(6);
+    expect(daysBetween("2026-12-31", "2027-01-01")).toBe(1);
+    expect(daysBetween("2026-10-01", "2026-09-30")).toBe(-1);
   });
 });

@@ -3,13 +3,15 @@
  *
  * デモ動画の見せ場。登録件数と「カレンダーに追加」を大きく出す。
  * 要確認は「⚠ 要確認」ではなく理由をそのまま出す（4.6）。
- * 編集（日付の直し、削除、追加、第 1 回の上書き）は 9/27 に足す。
+ * カードを押すと編集（edit.tsx）、「削除」で外す、「予定を追加」で手で足せる。
+ * 第 1 回の上書きはまだ無い。
  */
 import { useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { formatJa } from "@syllabus/shared";
 import { ensurePermission, planRegistration, register } from "../lib/calendar";
+import { ensureNotificationPermission, scheduleReminders } from "../lib/notify";
 import { useAppStore } from "../store/useAppStore";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
@@ -19,7 +21,7 @@ const TYPE_LABEL = { class: "授業", assignment: "課題", exam: "試験", othe
 
 export default function Review() {
   const drafts = useAppStore((s) => s.drafts);
-  const clearDrafts = useAppStore((s) => s.clearDrafts);
+  const { clearDrafts, removeDraft, upsertDeadlines } = useAppStore();
   const [plan, setPlan] = useState({ creates: 0, updates: 0 });
   const [busy, setBusy] = useState(false);
   const { colors } = useTheme();
@@ -37,12 +39,17 @@ export default function Review() {
     }
     setBusy(true);
     const r = await register(drafts);
+    upsertDeadlines(drafts);
+    // 通知が断られてもカレンダーの登録は済ませる（通知は後から設定で許可できる）
+    const notifyOk = await ensureNotificationPermission();
+    const n = notifyOk ? await scheduleReminders(drafts) : null;
     setBusy(false);
-    clearDrafts();
     Alert.alert(
       "カレンダーに追加しました",
-      `新規 ${r.created} 件・更新 ${r.updated} 件${r.skipped ? `・日付未確定 ${r.skipped} 件` : ""}`,
-      [{ text: "OK", onPress: () => router.replace("/") }],
+      `新規 ${r.created} 件・更新 ${r.updated} 件${r.skipped ? `・日付未確定 ${r.skipped} 件` : ""}\n` +
+        (n ? `締切の前日と当日に通知します（${n.scheduled} 件）` : "通知が許可されていないため、通知は届きません"),
+      // 下書きを先に消すと、ダイアログの裏に「日程が見つかりませんでした」が一瞬見えるので、閉じてから消す
+      [{ text: "OK", onPress: () => { router.dismissTo("/"); clearDrafts(); } }],
     );
   }
 
@@ -53,7 +60,7 @@ export default function Review() {
       <ScrollView contentContainerStyle={styles.list}>
         {drafts.length === 0 ? (
           <Text style={[type.bodyLarge, styles.empty, { color: colors.onSurfaceVariant }]}>
-            日程が見つかりませんでした。撮り直してください。
+            締切が見つかりませんでした。下の「予定を追加」で手で入れるか、撮り直してください。
           </Text>
         ) : (
           // 何件のうち何件を見ればいいのかを最初に出す（全部を読ませない）
@@ -70,7 +77,13 @@ export default function Review() {
           const fgSub = warn ? colors.onWarningContainer : colors.onSurfaceVariant;
 
           return (
-            <Card key={d.id} tone={warn ? "warn" : "normal"}>
+            <Pressable
+              key={d.id}
+              onPress={() => router.push({ pathname: "/edit", params: { id: d.id } })}
+              accessibilityRole="button"
+              accessibilityHint="押すと編集できます"
+            >
+            <Card tone={warn ? "warn" : "normal"}>
               <View style={styles.head}>
                 <View
                   style={[
@@ -105,9 +118,25 @@ export default function Review() {
                   ⚠ {r.message}
                 </Text>
               ))}
+
+              <View style={styles.actions}>
+                <Text style={[type.labelLarge, { color: warn ? colors.onWarningContainer : colors.primary }]}>
+                  編集
+                </Text>
+                <Pressable onPress={() => removeDraft(d.id)} hitSlop={12} accessibilityRole="button">
+                  <Text style={[type.labelLarge, { color: colors.error }]}>削除</Text>
+                </Pressable>
+              </View>
             </Card>
+            </Pressable>
           );
         })}
+
+        <Button
+          label="＋ 予定を追加"
+          variant="tonal"
+          onPress={() => router.push({ pathname: "/edit", params: { id: "new" } })}
+        />
       </ScrollView>
 
       <View
@@ -140,6 +169,7 @@ const styles = StyleSheet.create({
   },
   title: { fontWeight: "600" },
   reason: { marginTop: spacing.xs },
+  actions: { flexDirection: "row", justifyContent: "flex-end", gap: spacing.xl, marginTop: spacing.sm },
   bottomBar: {
     padding: spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,

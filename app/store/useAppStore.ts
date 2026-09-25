@@ -1,12 +1,25 @@
 /**
  * 状態管理と保存（Zustand ＋ AsyncStorage）
  *
- * 保存するのは学期設定・科目・下書き。祝日は保存しない（ライブラリから導出する。4.4）。
+ * 保存するのは学期設定・科目・登録した締切。祝日は保存しない（ライブラリから導出する。4.4）。
+ * 下書きは確認画面の間だけのものなので保存しない。
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { Course, DraftEvent, Semester } from "@syllabus/shared";
+import type { Course, DraftEvent, EventType, Semester } from "@syllabus/shared";
+import { eventKey } from "../lib/calendar";
+
+/** カレンダーに登録した課題・試験。ホームの締切一覧と課題チェックリスト（F9）に使う */
+export type Deadline = {
+  key: string; // eventKey。カレンダーと通知の対応表と同じキー
+  course: string;
+  title: string;
+  type: EventType;
+  date: string;
+  time: string | null;
+  done: boolean;
+};
 
 type State = {
   semesters: Semester[];
@@ -14,6 +27,7 @@ type State = {
   courses: Course[];
   /** 確認画面（S5）に渡す抽出結果。登録したら捨てる */
   drafts: DraftEvent[];
+  deadlines: Deadline[];
   pro: boolean;
   remainingCourses: number; // -1 は無制限（pro）
 };
@@ -25,8 +39,13 @@ type Actions = {
   upsertCourse: (c: Course) => void;
   setDrafts: (d: DraftEvent[]) => void;
   updateDraft: (id: string, patch: Partial<DraftEvent>) => void;
+  addDraft: (d: DraftEvent) => void;
   removeDraft: (id: string) => void;
   clearDrafts: () => void;
+  /** 登録した予定のうち課題・試験を締切一覧に入れる。同じキーは上書きし、完了の印は残す */
+  upsertDeadlines: (events: DraftEvent[]) => void;
+  setDone: (key: string, done: boolean) => void;
+  clearDeadlines: () => void;
   setPro: (pro: boolean) => void;
   setRemaining: (n: number) => void;
 };
@@ -38,6 +57,7 @@ export const useAppStore = create<State & Actions>()(
       currentSemesterId: null,
       courses: [],
       drafts: [],
+      deadlines: [],
       pro: false,
       remainingCourses: 3,
 
@@ -66,9 +86,35 @@ export const useAppStore = create<State & Actions>()(
       updateDraft: (id, patch) =>
         set((st) => ({ drafts: st.drafts.map((d) => (d.id === id ? { ...d, ...patch } : d)) })),
 
+      addDraft: (d) => set((st) => ({ drafts: [...st.drafts, d] })),
+
       removeDraft: (id) => set((st) => ({ drafts: st.drafts.filter((d) => d.id !== id) })),
 
       clearDrafts: () => set({ drafts: [] }),
+
+      upsertDeadlines: (events) =>
+        set((st) => {
+          const byKey = new Map(st.deadlines.map((d) => [d.key, d]));
+          for (const e of events) {
+            if (!e.date || (e.type !== "assignment" && e.type !== "exam")) continue;
+            const key = eventKey(e);
+            byKey.set(key, {
+              key,
+              course: e.course,
+              title: e.title,
+              type: e.type,
+              date: e.date,
+              time: e.time,
+              done: byKey.get(key)?.done ?? false,
+            });
+          }
+          return { deadlines: [...byKey.values()] };
+        }),
+
+      setDone: (key, done) =>
+        set((st) => ({ deadlines: st.deadlines.map((d) => (d.key === key ? { ...d, done } : d)) })),
+
+      clearDeadlines: () => set({ deadlines: [] }),
 
       setPro: (pro) => set({ pro }),
 
@@ -81,6 +127,7 @@ export const useAppStore = create<State & Actions>()(
         semesters: s.semesters,
         currentSemesterId: s.currentSemesterId,
         courses: s.courses,
+        deadlines: s.deadlines,
         pro: s.pro,
         remainingCourses: s.remainingCourses,
       }),

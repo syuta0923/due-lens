@@ -71,6 +71,26 @@ export function toLocalDate(date: string, time: string | null): Date {
   return new Date(y, m - 1, d, hh, mm, 0, 0);
 }
 
+function timedRange(date: string, time: string, minutes: number) {
+  const startDate = toLocalDate(date, time);
+  return { startDate, endDate: new Date(startDate.getTime() + minutes * 60 * 1000), allDay: false };
+}
+
+/**
+ * 時刻の無い予定（時刻の書かれていない試験など）は終日にする。
+ * Android のカレンダーは終日の予定を「UTC の 0 時〜翌日 0 時」で持つ決まりで、
+ * 端末の 0 時（JST なら前日の 15:00 UTC）で渡すと前日にずれて表示される。
+ */
+function allDayRange(date: string) {
+  const { y, m, d } = parseDate(date);
+  return {
+    startDate: new Date(Date.UTC(y, m - 1, d)),
+    endDate: new Date(Date.UTC(y, m - 1, d + 1)),
+    allDay: true,
+    timeZone: "UTC",
+  };
+}
+
 export type RegisterPlan = { creates: DraftEvent[]; updates: DraftEvent[]; skipped: DraftEvent[] };
 
 /** 確認画面のボタンに「新規 12 件・更新 3 件」と出すための下見（7.6） */
@@ -99,14 +119,10 @@ export async function register(events: DraftEvent[]): Promise<RegisterResult> {
     }
 
     const isDeadline = e.type === "assignment" || e.type === "exam";
-    const startDate = toLocalDate(e.date, e.time);
-    const endDate = new Date(startDate.getTime() + (isDeadline ? 30 : 90) * 60 * 1000);
     const details = {
       title: `${e.title}（${e.course}）`,
-      startDate,
-      endDate,
       notes: e.sourceText,
-      allDay: e.time === null && !isDeadline,
+      ...(e.time === null ? allDayRange(e.date) : timedRange(e.date, e.time, isDeadline ? 30 : 90)),
     };
 
     const key = eventKey(e);

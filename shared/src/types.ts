@@ -34,7 +34,7 @@ export type Course = {
 /** 確認画面で「なぜ要確認なのか」を示す理由。アプリ側で計算する（4.6） */
 export type ReviewReason =
   | { kind: "weekday_mismatch"; message: string }
-  | { kind: "out_of_semester"; message: string }
+  | { kind: "out_of_range"; message: string }
   | { kind: "date_inferred"; message: string }
   | { kind: "session_unresolved"; message: string }
   | { kind: "weekday_unknown"; message: string }

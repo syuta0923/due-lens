@@ -6,3 +6,4 @@ export * from "./review";
 export * from "./schedule";
 export * from "./schema";
 export * from "./types";
+export * from "./semester";

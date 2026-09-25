@@ -5,7 +5,7 @@
  * 確認画面では「⚠ 要確認」ではなく「⚠ 10/20（火）とありますが、2026-10-20 は日曜です」と出す。
  */
 import {
-  KANJI_TO_WEEKDAY, WEEKDAY_TO_KANJI, formatJa, isBetween, isValidDate, weekdayOf,
+  KANJI_TO_WEEKDAY, WEEKDAY_TO_KANJI, formatJa, isValidDate, parseDate, formatDate, weekdayOf,
 } from "./dates";
 import { isHoliday as defaultIsHoliday, type IsHolidayFn } from "./holidays";
 import { resolveSession } from "./schedule";
@@ -22,6 +22,13 @@ export function weekdayInRaw(dateRaw: string | null): ReturnType<typeof weekdayO
   if (!dateRaw) return null;
   const m = /[（(]?\s*([月火水木金土日])\s*(?:曜日?)?\s*[）)]?/.exec(dateRaw);
   return m ? KANJI_TO_WEEKDAY[m[1]!] ?? null : null;
+}
+
+/** "YYYY-MM-DD" の n 年後（2/29 は 2/28 に丸める） */
+function addYears(date: string, n: number): string {
+  const { y, m, d } = parseDate(date);
+  const target = { y: y + n, m, d };
+  return isValidDate(formatDate(target)) ? formatDate(target) : formatDate({ ...target, d: d - 1 });
 }
 
 type ResolvedEvent = {
@@ -49,7 +56,7 @@ function resolveDate(
 export function reviewReasons(
   ev: ExtractedEvent,
   resolved: ResolvedEvent,
-  sem: Semester,
+  today: string | null,
 ): ReviewReason[] {
   const out: ReviewReason[] = [];
 
@@ -65,11 +72,20 @@ export function reviewReasons(
     }
   }
 
-  if (resolved.date && !isBetween(resolved.date, sem.start, sem.end)) {
-    out.push({
-      kind: "out_of_semester",
-      message: `${formatJa(resolved.date)} は学期（${sem.start}〜${sem.end}）の範囲外です`,
-    });
+  // 学期の範囲では判定しない。夏休み課題のように学期の外にある締切は普通にある（第5版）。
+  // 見たいのは年の読み違いなので、今日から見て「もう過ぎている」「1 年以上先」を拾う
+  if (resolved.date && today) {
+    if (resolved.date < today) {
+      out.push({
+        kind: "out_of_range",
+        message: `${formatJa(resolved.date)} はすでに過ぎています。年を読み違えていないか確かめてください`,
+      });
+    } else if (resolved.date > addYears(today, 1)) {
+      out.push({
+        kind: "out_of_range",
+        message: `${resolved.date} は 1 年以上先です。年を読み違えていないか確かめてください`,
+      });
+    }
   }
 
   if (ev.date_basis === "inferred") {
@@ -77,13 +93,18 @@ export function reviewReasons(
   }
 
   if (resolved.sessionFailure === "weekday_unknown") {
-    out.push({ kind: "weekday_unknown", message: "科目の曜日が不明です。曜日を選んでください" });
+    out.push({
+      kind: "weekday_unknown",
+      message: ev.session_number
+        ? `科目の曜日が分からないため、第${ev.session_number}回を日付にできません。押して日付を入力してください`
+        : "科目の曜日が分かりません。押して日付を入力してください",
+    });
   } else if (resolved.sessionFailure === "session_unresolved") {
     out.push({
       kind: "session_unresolved",
       message: ev.session_number
-        ? `第${ev.session_number}回が学期内に見つかりません。日付を入力してください`
-        : "日付も回数も読み取れませんでした。日付を入力してください",
+        ? `第${ev.session_number}回が学期内に見つかりません。押して日付を入力してください`
+        : "日付が書かれていませんでした。押して日付を入力してください",
     });
   } else if (resolved.sessionFailure === "first_session_not_found") {
     out.push({
@@ -115,6 +136,8 @@ export type BuildOptions = {
   /** 既存科目に紐付いている場合、course_index → Course（firstSessionDate を反映するため） */
   courseOverrides?: (Pick<Course, "weekday" | "firstSessionDate"> | undefined)[];
   makeId?: (i: number) => string;
+  /** 今日（"YYYY-MM-DD"）。過ぎた日付・遠すぎる日付の判定に使う。無ければ判定しない */
+  today?: string;
 };
 
 /** 抽出結果を確認画面（S5）用の DraftEvent に変換する */
@@ -149,7 +172,7 @@ export function buildDrafts(
       dateRaw: ev.date_raw,
       dateBasis: ev.date_basis,
       page: ev.page,
-      reviewReasons: reviewReasons(ev, resolved, sem),
+      reviewReasons: reviewReasons(ev, resolved, opts.today ?? null),
     } satisfies DraftEvent;
   });
 }

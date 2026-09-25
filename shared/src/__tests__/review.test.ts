@@ -50,8 +50,30 @@ describe("buildDrafts", () => {
     })]), sem, { isHoliday });
     const kinds = d!.reviewReasons.map((r) => r.kind);
     expect(kinds).toContain("weekday_mismatch"); // 2025-10-20 は月曜
-    expect(kinds).toContain("out_of_semester");
     expect(d!.reviewReasons[0]!.message).toContain("月曜");
+  });
+
+  it("学期の外でも、今日より後で 1 年以内なら out_of_range は出ない（夏休み課題など）", () => {
+    const [d] = buildDrafts(ext([ev({
+      date_raw: "9/25", date: "2026-09-25", source_text: "9/25 17:00 最終期限",
+    })]), sem, { isHoliday, today: "2026-09-24" });
+    expect(d!.reviewReasons).toEqual([]);
+  });
+
+  it("過ぎた日付・1 年以上先の日付は out_of_range", () => {
+    const [past, far] = buildDrafts(ext([
+      ev({ date_raw: "10/20", date: "2025-10-20", source_text: "10/20 提出" }),
+      ev({ date_raw: "10/20", date: "2027-10-20", source_text: "10/20 提出" }),
+    ]), sem, { isHoliday, today: "2026-09-24" });
+    expect(past!.reviewReasons.map((r) => r.kind)).toContain("out_of_range");
+    expect(far!.reviewReasons.map((r) => r.kind)).toContain("out_of_range");
+  });
+
+  it("today を渡さなければ out_of_range は判定しない", () => {
+    const [d] = buildDrafts(ext([ev({
+      date_raw: "10/20", date: "2025-10-20", source_text: "10/20 提出",
+    })]), sem, { isHoliday });
+    expect(d!.reviewReasons).toEqual([]);
   });
 
   it("第 n 回は日付に変換される", () => {
