@@ -6,6 +6,8 @@
 課題の案内・シラバス・課題一覧の PDF や写真、スクショを読み込むと、課題の締切と試験日を取り出して
 カレンダーに登録し、締切の前に通知する。RevenueCat Shipaton 2026 / Next Gen Award 応募作品。
 
+デモ動画：https://youtu.be/UT-QHsBmUV0
+
 仕様書：[syllabus-calendar-spec.md](./syllabus-calendar-spec.md)
 
 ## 特徴

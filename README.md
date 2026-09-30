@@ -8,7 +8,7 @@ the assignment deadlines and exam dates, adds them to your calendar, and reminds
 
 Built for **RevenueCat Shipaton 2026 — Next Gen Award**.
 
-- Demo video: _(YouTube link)_
+- Demo video: https://youtu.be/UT-QHsBmUV0
 - Full design spec (Japanese): [syllabus-calendar-spec.md](./syllabus-calendar-spec.md)
 
 | Review what AI found | Warnings with reasons | Reminder | Paywall | Checklist |
