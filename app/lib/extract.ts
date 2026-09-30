@@ -15,7 +15,11 @@ import {
   type ExtractSuccess,
 } from "@syllabus/shared";
 
-const API_BASE = (Constants.expoConfig?.extra?.apiBaseUrl as string) ?? "http://localhost:8787";
+// 開発中は `adb reverse tcp:8787 tcp:8787` でUSB越しにPCのWorkerへつなぐ。
+// app.json の extra はビルド時に埋め込まれ、PCのLANアドレスが変わるとリビルドが要るため。
+const API_BASE = __DEV__
+  ? "http://localhost:8787"
+  : ((Constants.expoConfig?.extra?.apiBaseUrl as string) ?? "http://localhost:8787");
 
 export type Attachment = {
   uri: string;

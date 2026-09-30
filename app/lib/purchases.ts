@@ -27,13 +27,27 @@ export function isPro(info: CustomerInfo | null): boolean {
   return Boolean(info?.entitlements.active[ENTITLEMENT_ID]);
 }
 
-export async function fetchIsPro(): Promise<boolean> {
-  if (!API_KEY) return false;
+/**
+ * 購入状態を問い合わせる。確かめられなかったとき（圏外など）は null。
+ * false と区別するのは、呼ぶ側が保存済みの pro を上書きして、有料の人を無料に戻さないため。
+ */
+export async function fetchIsPro(): Promise<boolean | null> {
+  if (!configured) return null;
   try {
     return isPro(await Purchases.getCustomerInfo());
   } catch {
-    return false;
+    return null;
   }
+}
+
+/** 購入・更新・期限切れを拾う。戻り値で購読をやめる */
+export function onProChange(cb: (pro: boolean) => void): () => void {
+  if (!configured) return () => {};
+  const listener = (info: CustomerInfo) => cb(isPro(info));
+  Purchases.addCustomerInfoUpdateListener(listener);
+  return () => {
+    Purchases.removeCustomerInfoUpdateListener(listener);
+  };
 }
 
 /** ペイウォール（S6）。無料枠を使い切ったとき・有料機能をタップしたとき・設定画面から */
@@ -52,11 +66,12 @@ export async function presentPaywall(): Promise<boolean> {
   }
 }
 
-export async function restore(): Promise<boolean> {
-  if (!configured) return false;
+/** 購入の復元。通信の失敗などで確かめられなかったときは null（fetchIsPro と同じ理由） */
+export async function restore(): Promise<boolean | null> {
+  if (!configured) return null;
   try {
     return isPro(await Purchases.restorePurchases());
   } catch {
-    return false;
+    return null;
   }
 }

@@ -11,7 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import type { DraftEvent } from "@syllabus/shared";
-import { eventKey, toLocalDate } from "./calendar";
+import { eventKey, previousKey, toLocalDate, type Draft } from "./calendar";
 
 const CHANNEL_ID = "deadlines";
 const NOTIFY_MAP_KEY = "notify:ids";
@@ -21,7 +21,8 @@ export const REMIND_DAY_BEFORE = "20:00";
 export const REMIND_SAME_DAY = "08:00";
 
 /** 通知に要る項目だけ。確認画面の下書き（DraftEvent）と締切一覧（Deadline）のどちらも渡せる */
-type Remindable = Pick<DraftEvent, "course" | "title" | "type" | "date" | "time">;
+type Remindable = Pick<DraftEvent, "course" | "title" | "type" | "date" | "time"> &
+  Pick<Draft, "originKey">;
 
 type NotifyMap = Record<string, string[]>; // eventKey → 予約した通知の ID
 
@@ -110,12 +111,20 @@ export async function scheduleReminders(events: Remindable[]): Promise<ScheduleR
   let scheduled = 0;
 
   for (const e of events) {
-    if (!isDeadline(e) || !e.date) continue;
+    // 日付の無い予定はカレンダーにも登録しない（calendar.ts）。前の予約もそのままにする
+    if (!e.date) continue;
     const key = eventKey(e);
 
-    for (const id of map[key] ?? []) {
-      await Notifications.cancelScheduledNotificationAsync(id);
+    // 古い予約を消す。日付などを直した予定は直す前のキー（previousKey）の分も消す
+    // 種別を「その他」に直した予定も、前に予約した分はここで止める
+    const prev = previousKey(e);
+    for (const k of prev ? [key, prev] : [key]) {
+      for (const id of map[k] ?? []) {
+        await Notifications.cancelScheduledNotificationAsync(id);
+      }
+      delete map[k];
     }
+    if (!isDeadline(e)) continue;
 
     const ids: string[] = [];
     for (const r of remindersFor(e)) {

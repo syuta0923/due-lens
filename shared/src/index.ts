@@ -1,6 +1,7 @@
 export * from "./api";
 export * from "./dates";
 export * from "./holidays";
+export * from "./month";
 export * from "./normalize";
 export * from "./review";
 export * from "./schedule";

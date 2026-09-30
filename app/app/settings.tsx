@@ -66,6 +66,10 @@ export default function Settings() {
           supporting="機種変更したときはこちら"
           onPress={async () => {
             const ok = await restore();
+            if (ok === null) {
+              Alert.alert("復元できませんでした", "通信できる場所で、もう一度試してください");
+              return;
+            }
             setPro(ok);
             Alert.alert(ok ? "復元しました" : "復元できる購入がありませんでした");
           }}

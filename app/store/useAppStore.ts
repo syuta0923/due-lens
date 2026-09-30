@@ -7,8 +7,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { Course, DraftEvent, EventType, Semester } from "@syllabus/shared";
-import { eventKey } from "../lib/calendar";
+import type { Course, EventType, Semester } from "@syllabus/shared";
+import { eventKey, previousKey, type Draft } from "../lib/calendar";
 
 /** カレンダーに登録した課題・試験。ホームの締切一覧と課題チェックリスト（F9）に使う */
 export type Deadline = {
@@ -26,7 +26,7 @@ type State = {
   currentSemesterId: string | null;
   courses: Course[];
   /** 確認画面（S5）に渡す抽出結果。登録したら捨てる */
-  drafts: DraftEvent[];
+  drafts: Draft[];
   deadlines: Deadline[];
   pro: boolean;
   remainingCourses: number; // -1 は無制限（pro）
@@ -37,13 +37,13 @@ type Actions = {
   upsertSemester: (s: Semester) => void;
   setCurrentSemester: (id: string) => void;
   upsertCourse: (c: Course) => void;
-  setDrafts: (d: DraftEvent[]) => void;
-  updateDraft: (id: string, patch: Partial<DraftEvent>) => void;
-  addDraft: (d: DraftEvent) => void;
+  setDrafts: (d: Draft[]) => void;
+  updateDraft: (id: string, patch: Partial<Draft>) => void;
+  addDraft: (d: Draft) => void;
   removeDraft: (id: string) => void;
   clearDrafts: () => void;
   /** 登録した予定のうち課題・試験を締切一覧に入れる。同じキーは上書きし、完了の印は残す */
-  upsertDeadlines: (events: DraftEvent[]) => void;
+  upsertDeadlines: (events: Draft[]) => void;
   setDone: (key: string, done: boolean) => void;
   clearDeadlines: () => void;
   setPro: (pro: boolean) => void;
@@ -96,8 +96,19 @@ export const useAppStore = create<State & Actions>()(
         set((st) => {
           const byKey = new Map(st.deadlines.map((d) => [d.key, d]));
           for (const e of events) {
-            if (!e.date || (e.type !== "assignment" && e.type !== "exam")) continue;
+            // 日付の無い予定はカレンダーにも登録しない（calendar.ts）。前の登録もそのままにする
+            if (!e.date) continue;
             const key = eventKey(e);
+            // 直す前のキーの締切は外す（完了の印だけ引き継ぐ）
+            const prev = previousKey(e);
+            const before = byKey.get(key) ?? (prev ? byKey.get(prev) : undefined);
+            if (prev) byKey.delete(prev);
+
+            // 種別を「その他」に直した予定は締切一覧から外す
+            if (e.type !== "assignment" && e.type !== "exam") {
+              byKey.delete(key);
+              continue;
+            }
             byKey.set(key, {
               key,
               course: e.course,
@@ -105,7 +116,7 @@ export const useAppStore = create<State & Actions>()(
               type: e.type,
               date: e.date,
               time: e.time,
-              done: byKey.get(key)?.done ?? false,
+              done: before?.done ?? false,
             });
           }
           return { deadlines: [...byKey.values()] };

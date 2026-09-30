@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { isValidDate, type DraftEvent, type EventType } from "@syllabus/shared";
+import { eventKey, type Draft } from "../lib/calendar";
 import { useAppStore } from "../store/useAppStore";
 import { Button } from "../components/Button";
 import { TextField } from "../components/TextField";
@@ -41,7 +42,7 @@ export default function EditScreen() {
   const valid = !titleError && !dateError && !timeError;
 
   function onSave() {
-    const patch: Partial<DraftEvent> = {
+    const patch: Partial<Draft> = {
       type: kind,
       title: title.trim(),
       course: course.trim() || "(科目なし)",
@@ -53,7 +54,8 @@ export default function EditScreen() {
     };
 
     if (existing) {
-      updateDraft(existing.id, patch);
+      // 何度直しても、最初（読み込んだとき）のキーを覚えておく。登録済みの予定を付け替えるため（calendar.ts）
+      updateDraft(existing.id, { ...patch, originKey: existing.originKey ?? eventKey(existing) });
     } else {
       addDraft({
         id: `manual-${Date.now()}`,

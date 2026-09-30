@@ -2,9 +2,13 @@ import { Stack } from "expo-router";
 import { useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import { setupNotifications } from "../lib/notify";
-import { configure, fetchIsPro } from "../lib/purchases";
+import { configure, fetchIsPro, onProChange } from "../lib/purchases";
 import { useAppStore } from "../store/useAppStore";
 import { type, useTheme } from "../lib/theme";
+import { LogBox } from "react-native";
+
+// デモ動画を開発ビルドで撮るので、画面下の警告バーを出さない（警告はMetroの端末に出る）
+LogBox.ignoreAllLogs();
 
 export default function RootLayout() {
   const setPro = useAppStore((s) => s.setPro);
@@ -13,7 +17,11 @@ export default function RootLayout() {
   useEffect(() => {
     configure();
     setupNotifications();
-    void fetchIsPro().then(setPro);
+    // 確かめられなかったとき（null）は保存済みの値を残す。圏外で起動しただけで無料に戻さない
+    void fetchIsPro().then((pro) => {
+      if (pro !== null) setPro(pro);
+    });
+    return onProChange(setPro);
   }, [setPro]);
 
   return (
@@ -34,6 +42,7 @@ export default function RootLayout() {
         <Stack.Screen name="review" options={{ title: "確認・編集" }} />
         <Stack.Screen name="edit" options={{ title: "予定を編集", presentation: "modal" }} />
         <Stack.Screen name="settings" options={{ title: "設定" }} />
+        <Stack.Screen name="month" options={{ title: "カレンダー" }} />
       </Stack>
     </>
   );

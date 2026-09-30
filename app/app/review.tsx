@@ -38,12 +38,22 @@ export default function Review() {
       return;
     }
     setBusy(true);
-    const r = await register(drafts);
-    upsertDeadlines(drafts);
-    // 通知が断られてもカレンダーの登録は済ませる（通知は後から設定で許可できる）
-    const notifyOk = await ensureNotificationPermission();
-    const n = notifyOk ? await scheduleReminders(drafts) : null;
-    setBusy(false);
+    let r: Awaited<ReturnType<typeof register>>;
+    let n: Awaited<ReturnType<typeof scheduleReminders>> | null;
+    try {
+      r = await register(drafts);
+      upsertDeadlines(drafts);
+      // 通知が断られてもカレンダーの登録は済ませる（通知は後から設定で許可できる）
+      const notifyOk = await ensureNotificationPermission();
+      n = notifyOk ? await scheduleReminders(drafts) : null;
+    } catch (e) {
+      // 途中まで登録した分は calendar.ts が対応表に残すので、もう一度押しても二重にはならない
+      console.warn("[register] 登録に失敗", e);
+      Alert.alert("カレンダーに追加できませんでした", "途中まで追加した予定は残っています。もう一度試してください");
+      return;
+    } finally {
+      setBusy(false);
+    }
     Alert.alert(
       "カレンダーに追加しました",
       `新規 ${r.created} 件・更新 ${r.updated} 件${r.skipped ? `・日付未確定 ${r.skipped} 件` : ""}\n` +

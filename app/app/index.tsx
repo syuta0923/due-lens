@@ -106,16 +106,24 @@ export default function Home() {
     if (!stored) upsertSemester(semester);
 
     setBusy("書類を送信中…");
-    const meta: ExtractRequestMeta = {
-      deviceId: await getDeviceId(),
-      semesterId: semester.id,
-      pro,
-      today,
-      semester: { start: semester.start, end: semester.end },
-    };
-
-    const res = await extract(attachments, meta);
-    setBusy(null);
+    let res: Awaited<ReturnType<typeof extract>>;
+    try {
+      const meta: ExtractRequestMeta = {
+        deviceId: await getDeviceId(),
+        semesterId: semester.id,
+        pro,
+        today,
+        semester: { start: semester.start, end: semester.end },
+      };
+      res = await extract(attachments, meta);
+    } catch (e) {
+      // extract の中で受け止めるのは通信の失敗だけ。画像の縮小などで落ちても busy のまま固まらないように
+      console.warn("[read] 読み込みに失敗", e);
+      Alert.alert("読み込めませんでした", "書類を開けませんでした。別の画像や PDF で試してください");
+      return;
+    } finally {
+      setBusy(null);
+    }
 
     if (!isSuccess(res)) {
       if (res.code === "paywall_required") {
@@ -165,7 +173,10 @@ export default function Home() {
       </Text>
 
       <View style={styles.section}>
-        <Text style={[type.titleMedium, { color: colors.onSurface }]}>締切</Text>
+        <View style={styles.sectionHead}>
+          <Text style={[type.titleMedium, { color: colors.onSurface }]}>締切</Text>
+          <Button label="月で見る" variant="text" onPress={() => router.push("/month")} />
+        </View>
         {open.length === 0 ? (
           <Text style={[type.bodyMedium, { color: colors.onSurfaceVariant }]}>
             {deadlines.length === 0
@@ -265,6 +276,7 @@ const styles = StyleSheet.create({
   container: { padding: spacing.lg, gap: spacing.lg },
   status: { textAlign: "center" },
   section: { gap: spacing.sm },
+  sectionHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   checkHit: {
     minWidth: TOUCH_TARGET - 8,

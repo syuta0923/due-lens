@@ -22,6 +22,20 @@ export function eventKey(e: Pick<DraftEvent, "course" | "title" | "date">): stri
   return `${e.course}|${e.title}|${e.date ?? "-"}`;
 }
 
+/**
+ * 確認画面の下書き。originKey は編集（edit.tsx）する前のキー。
+ *
+ * キーに日付が入っているので、読み違えた日付を直すとキーが変わり、前に登録した予定が
+ * 別物として残ってしまう（カレンダー・締切一覧・通知のすべてに）。直す前のキーを覚えておき、
+ * 登録するときにそのキーで登録済みの予定・締切・通知を付け替える。
+ */
+export type Draft = DraftEvent & { originKey?: string };
+
+/** 直してキーが変わった下書きなら、直す前のキー。変わっていなければ null */
+export function previousKey(e: Pick<Draft, "course" | "title" | "date" | "originKey">): string | null {
+  return e.originKey && e.originKey !== eventKey(e) ? e.originKey : null;
+}
+
 type EventMap = Record<string, string>; // key → 端末カレンダーのイベント ID
 
 async function loadMap(): Promise<EventMap> {
@@ -94,12 +108,13 @@ function allDayRange(date: string) {
 export type RegisterPlan = { creates: DraftEvent[]; updates: DraftEvent[]; skipped: DraftEvent[] };
 
 /** 確認画面のボタンに「新規 12 件・更新 3 件」と出すための下見（7.6） */
-export async function planRegistration(events: DraftEvent[]): Promise<RegisterPlan> {
+export async function planRegistration(events: Draft[]): Promise<RegisterPlan> {
   const map = await loadMap();
   const plan: RegisterPlan = { creates: [], updates: [], skipped: [] };
   for (const e of events) {
+    const prev = previousKey(e);
     if (!e.date) plan.skipped.push(e);
-    else if (map[eventKey(e)]) plan.updates.push(e);
+    else if (map[eventKey(e)] || (prev && map[prev])) plan.updates.push(e);
     else plan.creates.push(e);
   }
   return plan;
@@ -107,46 +122,70 @@ export async function planRegistration(events: DraftEvent[]): Promise<RegisterPl
 
 export type RegisterResult = { created: number; updated: number; skipped: number };
 
-export async function register(events: DraftEvent[]): Promise<RegisterResult> {
+export async function register(events: Draft[]): Promise<RegisterResult> {
   const cal = await ensureCalendar();
   const map = await loadMap();
   const result: RegisterResult = { created: 0, updated: 0, skipped: 0 };
 
-  for (const e of events) {
-    if (!e.date) {
-      result.skipped++;
-      continue;
-    }
-
-    const isDeadline = e.type === "assignment" || e.type === "exam";
-    const details = {
-      title: `${e.title}（${e.course}）`,
-      notes: e.sourceText,
-      ...(e.time === null ? allDayRange(e.date) : timedRange(e.date, e.time, isDeadline ? 30 : 90)),
-    };
-
-    const key = eventKey(e);
-    const existingId = map[key];
-
-    if (existingId) {
-      try {
-        const ev = new Calendar.ExpoCalendarEvent(existingId);
-        await ev.update(details);
-        result.updated++;
+  // 途中で落ちても、それまでに作った予定の ID は残す。残さないと押し直したときに二重登録になる
+  try {
+    for (const e of events) {
+      if (!e.date) {
+        result.skipped++;
         continue;
-      } catch {
-        // 端末側で消されていた場合は作り直す
-        delete map[key];
       }
+
+      const isDeadline = e.type === "assignment" || e.type === "exam";
+      const details = {
+        title: `${e.title}（${e.course}）`,
+        notes: e.sourceText,
+        ...(e.time === null ? allDayRange(e.date) : timedRange(e.date, e.time, isDeadline ? 30 : 90)),
+      };
+
+      const key = eventKey(e);
+
+      // 直す前のキーで登録済みなら、その予定を新しいキーに付け替えて更新する
+      const prev = previousKey(e);
+      if (prev && map[prev]) {
+        if (map[key]) {
+          // 直した先にも登録済みの予定がある。古い方を消して 1 件にまとめる
+          await deleteEvent(map[prev]);
+        } else {
+          map[key] = map[prev];
+        }
+        delete map[prev];
+      }
+
+      const existingId = map[key];
+
+      if (existingId) {
+        try {
+          const ev = new Calendar.ExpoCalendarEvent(existingId);
+          await ev.update(details);
+          result.updated++;
+          continue;
+        } catch {
+          // 端末側で消されていた場合は作り直す
+          delete map[key];
+        }
+      }
+
+      const created = await cal.createEvent(details);
+      map[key] = created.id;
+      result.created++;
     }
-
-    const created = await cal.createEvent(details);
-    map[key] = created.id;
-    result.created++;
+  } finally {
+    await saveMap(map);
   }
-
-  await saveMap(map);
   return result;
+}
+
+async function deleteEvent(id: string): Promise<void> {
+  try {
+    await new Calendar.ExpoCalendarEvent(id).delete();
+  } catch {
+    // 端末側ですでに消されている
+  }
 }
 
 /** デモの撮り直し用。専用カレンダーごと消せば登録した予定はすべて消える */
